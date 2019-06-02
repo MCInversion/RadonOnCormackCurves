@@ -40,17 +40,17 @@ double f_gaussiand_polar(double r, double theta) {
 	return f_gaussians(polarToX(r, theta), polarToY(r, theta));
 }
 
-Magick::Image CormackTransformAlpha(Magick::Image *image, double alpha) {
+Magick::Image CormackTransform(Magick::Image *image, double sigma, bool alpha_transform = true) {
 	const double phiMin = 0.; const double phiMax = 2 * M_PI;
 	const double pMin = 0.; const double pMax = 1.;
-	const double psiMax = 0.99 * M_PI / (2 * alpha);
+	const double psiMax = (alpha_transform ? 0.99 : 1.) * M_PI / (2 * sigma);
 	const double psiMin = -psiMax;
 	double phi, p, dArcLength;
-	double fvalR, fvalG, fvalB; // , fvalR_prev, fvalG_prev, fvalB_prev;
-	double psi, r, theta, x, y, psiIntegSumR, psiIntegSumG, psiIntegSumB;
-	int imgX, imgY;
+	double fvalR, fvalG, fvalB, fvalR_next, fvalG_next, fvalB_next;
+	double psi, r, r_next, theta, theta_next, x, y, x_next, y_next, psiIntegSumR, psiIntegSumG, psiIntegSumB;
+	int imgX, imgY, imgX_next, imgY_next;
 	int imgP, imgPhi;
-	Magick::ColorRGB px;
+	Magick::ColorRGB px, px_next;
 
 	const int w = image->columns();
 	const int h = image->rows();
@@ -71,7 +71,8 @@ Magick::Image CormackTransformAlpha(Magick::Image *image, double alpha) {
 	double dPsi = (psiMax - psiMin) / integralSize;
 	int percent = (h > 100 ? (int)round((double)h / 100.) : 1);
 
-	std::cout << "initializing Cormack alpha transform \\w alpha = " << alpha << std::endl;
+	std::string paramString = alpha_transform ? "alpha" : "beta";
+	std::cout << "initializing Cormack " << paramString << " transform \\w " << paramString << " = " << sigma << std::endl;
 	std::cout << "image : " << image->fileName() << ", " << h << "x" << w << std::endl;
 
 	for (int i = 0; i < h; i++) {
@@ -88,30 +89,41 @@ Magick::Image CormackTransformAlpha(Magick::Image *image, double alpha) {
 			for (int k = 0; k < integralSize; k++) {
 				psi += dPsi;
 
-				r = p / pow(cos(alpha * psi), 1. / alpha);
+
+				r = (alpha_transform ? p / pow(cos(sigma * psi), 1. / sigma) : p * pow(cos(sigma * psi), 1. / sigma));
+				r_next = (alpha_transform ? p / pow(cos(sigma * (psi + dPsi)), 1. / sigma) : p * pow(cos(sigma * (psi + dPsi)), 1. / sigma));
 				theta = phi + psi;
+				theta_next = theta + dPsi;
 
 				x = polarToX(r, theta);
 				y = polarToY(r, theta);
 
+				x_next = polarToX(r_next, theta_next);
+				y_next = polarToY(r_next, theta_next);
+
 				imgX = XtoPixelX(w, x);
 				imgY = YtoPixelY(h, y);
 
-				if (!isInsideImage(imgX, imgY, h, w)) {
+				imgX_next = XtoPixelX(w, x_next);
+				imgY_next = YtoPixelY(h, y_next);
+
+				if (!isInsideImage(imgX, imgY, h, w) || !isInsideImage(imgX_next, imgY_next, h, w)) {
 					continue;
 				}
 
 				px = image->pixelColor(imgX, imgY);
+				px_next = image->pixelColor(imgX_next, imgY_next);
 
 				fvalR = px.red(); fvalG = px.green(); fvalB = px.blue();
+				fvalR_next = px_next.red(); fvalG_next = px_next.green(); fvalB_next = px_next.blue();
 
 				// fvalR = fvalG = fvalB = f_gaussians(x, y);
 
-				dArcLength = dPsi / pow(cos(alpha * psi), (1. + 1. / alpha));
+				dArcLength = (alpha_transform ? dPsi / pow(cos(sigma * psi), (1. + 1. / sigma)) : dPsi * pow(cos(sigma * psi), (1. / sigma - 1)));
 
-				psiIntegSumR += p * fvalR * dArcLength;
-				psiIntegSumG += p * fvalG * dArcLength;
-				psiIntegSumB += p * fvalB * dArcLength;
+				psiIntegSumR += p * 0.5 * (fvalR + fvalR_next) * dArcLength;
+				psiIntegSumG += p * 0.5 * (fvalG + fvalG_next) * dArcLength;
+				psiIntegSumB += p * 0.5 * (fvalB + fvalB_next) * dArcLength;
 			}
 
 			if (psiIntegSumR < minR) {
@@ -180,7 +192,7 @@ Magick::Image CormackTransformAlpha(Magick::Image *image, double alpha) {
 		}
 	}
 	std::cout << std::endl;
-	std::cout << "Cormack alpha-transform complete." << std::endl;
+	std::cout << "Cormack " << paramString << "-transform complete." << std::endl;
 
 
 	view.sync();
@@ -205,11 +217,18 @@ int main(int /*argc*/, char **argv)
 		double s = 0.5;
 		orig_image.resize(Magick::Geometry(s * orig_image.columns(), s * orig_image.rows()));
 
-		Magick::Image result_1 = CormackTransformAlpha(&orig_image, 1.);
-		Magick::Image result_2 = CormackTransformAlpha(&orig_image, 0.5);
+		// alpha transforms
+		Magick::Image result_1 = CormackTransform(&orig_image, 1.);
+		Magick::Image result_2 = CormackTransform(&orig_image, 0.5);
+
+		// beta transforms
+		Magick::Image result_3 = CormackTransform(&orig_image, 1., false);
+		Magick::Image result_4 = CormackTransform(&orig_image, 0.5, false);
 
 		result_1.write("Sinogram1.jpg");
 		result_2.write("Sinogram2.jpg");
+		result_3.write("Sinogram3.jpg");
+		result_4.write("Sinogram4.jpg");
 	}
 	catch (Magick::Exception &error_)
 	{
