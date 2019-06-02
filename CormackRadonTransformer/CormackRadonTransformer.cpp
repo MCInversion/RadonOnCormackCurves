@@ -28,9 +28,21 @@ int YtoPixelY(int h, double y) {
 	return (int)round(y * h) - y / 2;
 }
 
+bool isInsideImage(int x, int y, int h, int w) {
+	return (x > 0 && x < w) && (y > 0 && y < h);
+}
+
+double f_gaussians(double x, double y) {
+	return 2 * exp(-(x * x + y * y)) + exp(-((x - 3) * (x - 3) + (y - 3) * (y - 3)));
+}
+
+double f_gaussiand_polar(double r, double theta) {
+	return f_gaussians(polarToX(r, theta), polarToY(r, theta));
+}
+
 Magick::Image CormackTransformAlpha(Magick::Image *image, double alpha) {
 	const double phiMin = 0.; const double phiMax = 2 * M_PI;
-	const double pMin = 0.; const double pMax = 10.;
+	const double pMin = 0.; const double pMax = 1.;
 	const double psiMax = 0.99 * M_PI / (2 * alpha);
 	const double psiMin = -psiMax;
 	double phi, p, dArcLength;
@@ -85,9 +97,15 @@ Magick::Image CormackTransformAlpha(Magick::Image *image, double alpha) {
 				imgX = XtoPixelX(w, x);
 				imgY = YtoPixelY(h, y);
 
+				if (!isInsideImage(imgX, imgY, h, w)) {
+					continue;
+				}
+
 				px = image->pixelColor(imgX, imgY);
 
 				fvalR = px.red(); fvalG = px.green(); fvalB = px.blue();
+
+				// fvalR = fvalG = fvalB = f_gaussians(x, y);
 
 				dArcLength = dPsi / pow(cos(alpha * psi), (1. + 1. / alpha));
 
@@ -181,7 +199,7 @@ int main(int /*argc*/, char **argv)
 	try {
 		orig_image.read("Shepp-Logan-phantom.pgm");
 
-		double s = 0.2;
+		double s = 0.4;
 		orig_image.resize(Magick::Geometry(s * orig_image.columns(), s * orig_image.rows()));
 
 		Magick::Image result_image = CormackTransformAlpha(&orig_image, 1.);
