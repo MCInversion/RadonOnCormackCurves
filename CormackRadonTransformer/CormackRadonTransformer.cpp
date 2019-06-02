@@ -71,8 +71,8 @@ Magick::Image CormackTransformAlpha(Magick::Image *image, double alpha) {
 	double dPsi = (psiMax - psiMin) / integralSize;
 	int percent = (h > 100 ? (int)round((double)h / 100.) : 1);
 
-	std::cout << "dPsi = " << dPsi << std::endl;
-	std::cout << "image : " << image->fileName() << ", " << h << "x" << w << ", 1% = " << percent << " rows " << std::endl;
+	std::cout << "initializing Cormack alpha transform \\w alpha = " << alpha << std::endl;
+	std::cout << "image : " << image->fileName() << ", " << h << "x" << w << std::endl;
 
 	for (int i = 0; i < h; i++) {
 		for (int j = 0; j < w; j++) {
@@ -179,6 +179,9 @@ Magick::Image CormackTransformAlpha(Magick::Image *image, double alpha) {
 			std::cout << "\rWriting results : " << (int)(((double)i / (double)h * 100) + 0.5) << " % complete ";
 		}
 	}
+	std::cout << std::endl;
+	std::cout << "Cormack alpha-transform complete." << std::endl;
+
 
 	view.sync();
 
@@ -199,12 +202,14 @@ int main(int /*argc*/, char **argv)
 	try {
 		orig_image.read("Shepp-Logan-phantom.pgm");
 
-		double s = 0.4;
+		double s = 0.5;
 		orig_image.resize(Magick::Geometry(s * orig_image.columns(), s * orig_image.rows()));
 
-		Magick::Image result_image = CormackTransformAlpha(&orig_image, 1.);
+		Magick::Image result_1 = CormackTransformAlpha(&orig_image, 1.);
+		Magick::Image result_2 = CormackTransformAlpha(&orig_image, 0.5);
 
-		result_image.write("x.jpg");
+		result_1.write("Sinogram1.jpg");
+		result_2.write("Sinogram2.jpg");
 	}
 	catch (Magick::Exception &error_)
 	{

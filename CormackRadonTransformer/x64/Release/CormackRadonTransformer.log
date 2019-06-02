@@ -4,7 +4,7 @@ c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\corm
 c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(55): warning C4267: 'initializing': conversion from 'size_t' to 'const int', possible loss of data
 c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(56): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
 c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(56): warning C4267: 'initializing': conversion from 'size_t' to 'const int', possible loss of data
-c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(203): warning C4244: 'argument': conversion from 'double' to 'size_t', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(206): warning C4244: 'argument': conversion from 'double' to 'size_t', possible loss of data
   Generating code
   2 of 80 functions ( 2.5%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
