@@ -1,13 +1,21 @@
 ﻿  CormackRadonTransformer.cpp
-c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(28): warning C4244: 'return': conversion from 'double' to 'int', possible loss of data
-c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(55): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
-c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(55): warning C4267: 'initializing': conversion from 'size_t' to 'const int', possible loss of data
-c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(56): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
-c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(56): warning C4267: 'initializing': conversion from 'size_t' to 'const int', possible loss of data
-c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(218): warning C4244: 'argument': conversion from 'double' to 'size_t', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(29): warning C4244: 'return': conversion from 'double' to 'int', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(97): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(97): warning C4267: 'initializing': conversion from 'size_t' to 'const int', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(98): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(98): warning C4267: 'initializing': conversion from 'size_t' to 'const int', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(252): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(252): warning C4267: 'initializing': conversion from 'size_t' to 'const int', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(253): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(253): warning C4267: 'initializing': conversion from 'size_t' to 'const int', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(348): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(348): warning C4267: 'initializing': conversion from 'size_t' to 'const int', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(349): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(349): warning C4267: 'initializing': conversion from 'size_t' to 'const int', possible loss of data
+c:\users\mcava\source\repos\cormackradontransformer\cormackradontransformer\cormackradontransformer.cpp(462): warning C4244: 'argument': conversion from 'double' to 'size_t', possible loss of data
   Generating code
-  9 of 80 functions (11.3%) were compiled, the rest were copied from previous compilation.
-    1 functions were new in current compilation
+  12 of 106 functions (11.3%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
     3 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   CormackRadonTransformer.vcxproj -> C:\Users\mcava\source\repos\CormackRadonTransformer\x64\Release\CormackRadonTransformer.exe
