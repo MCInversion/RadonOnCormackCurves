@@ -193,7 +193,6 @@ Magick::Image CormackTransform(Magick::Image *image, double sigma, bool alpha_tr
 			resValuesB[i * h + j] = psiIntegSumB;
 		}
 
-
 		if (i % percent == 0) {
 			std::cout << "\rCormack Transform on " << image->fileName() << ": "
 				<< (int)(((double)i / (double)h * 100) + 0.5) << " % complete ";
@@ -245,28 +244,29 @@ Magick::Image CormackTransform(Magick::Image *image, double sigma, bool alpha_tr
 	return result;
 }
 
+
 Magick::Image imageFFT(Magick::Image *image) {
 	Magick::ColorRGB px;
 
 	const int w = image->columns();
 	const int h = image->rows();
-	Magick::Image result(Magick::Geometry(w, h), "black");
-	int percent = (h > 100 ? (int)round((double)h / 100.) : 1);
+	Magick::Image result(Magick::Geometry(h, w), "black");
+	int percent = (w > 100 ? (int)round((double)w / 100.) : 1);
 
 	result.type(Magick::TrueColorType);
 	result.modifyImage();
 
 	Magick::Pixels view(result);
-	Magick::Quantum *pixels = view.get(0, 0, w, h);
+	Magick::Quantum *pixels = view.get(0, 0, h, w);
 	Magick::ColorRGB col;
 
 	double *rowR = new double[w];
 	double *rowG = new double[w];
 	double *rowB = new double[w];
 
-	std::complex<double> **outR = new std::complex<double>*[h];
-	std::complex<double> **outG = new std::complex<double>*[h];
-	std::complex<double> **outB = new std::complex<double>*[h];
+	std::complex<double> **outR = new std::complex<double>*[w];
+	std::complex<double> **outG = new std::complex<double>*[w];
+	std::complex<double> **outB = new std::complex<double>*[w];
 
 	double minR = DBL_MAX;
 	double maxR = -DBL_MAX;
@@ -275,48 +275,49 @@ Magick::Image imageFFT(Magick::Image *image) {
 	double minB = minR;
 	double maxB = maxR;
 
-	for (int i = 0; i < h; i++) {
+	// along columns (p = 0 to p = pmax)
+	for (int j = 0; j < w; j++) {
 		// fill 3 1D vectors
-		outR[i] = new std::complex<double>[w];
-		outG[i] = new std::complex<double>[w];
-		outB[i] = new std::complex<double>[w];
+		outR[j] = new std::complex<double>[h];
+		outG[j] = new std::complex<double>[h];
+		outB[j] = new std::complex<double>[h];
 
-		for (int j = 0; j < w; j++) {
+		for (int i = 0; i < h; i++) {
 			px = image->pixelColor(i, j);
 
-			rowR[j] = px.red();
-			rowG[j] = px.green();
-			rowB[j] = px.blue();
+			rowR[i] = px.red();
+			rowG[i] = px.green();
+			rowB[i] = px.blue();
 		}
-		fft(rowR, outR[i], w);
-		fft(rowG, outG[i], w);
-		fft(rowB, outB[i], w);
+		fft(rowR, outR[j], h);
+		fft(rowG, outG[j], h);
+		fft(rowB, outB[j], h);
 
-		for (int j = 0; j < w; j++) {
-			if (outR[i][j].real() < minR) {
-				minR = outR[i][j].real();
+		for (int i = 0; i < h; i++) {
+			if (outR[j][i].real() < minR) {
+				minR = outR[j][i].real();
 			}
-			if (outR[i][j].real() > maxR) {
-				maxR = outR[i][j].real();
-			}
-
-			if (outG[i][j].real() < minG) {
-				minG = outG[i][j].real();
-			}
-			if (outG[i][j].real() > maxG) {
-				maxG = outG[i][j].real();
+			if (outR[j][i].real() > maxR) {
+				maxR = outR[j][i].real();
 			}
 
-			if (outB[i][j].real() < minB) {
-				minB = outB[i][j].real();
+			if (outG[j][i].real() < minG) {
+				minG = outG[j][i].real();
 			}
-			if (outB[i][j].real() > maxB) {
-				maxB = outB[i][j].real();
+			if (outG[j][i].real() > maxG) {
+				maxG = outG[j][i].real();
+			}
+
+			if (outB[j][i].real() < minB) {
+				minB = outB[j][i].real();
+			}
+			if (outB[j][i].real() > maxB) {
+				maxB = outB[j][i].real();
 			}
 		}
 
-		if (i % percent == 0) {
-			std::cout << "\rFFT filling complex arrays : " << (int)(((double)i / (double)h * 100) + 0.5) << " % complete ";
+		if (j % percent == 0) {
+			std::cout << "\rFFT filling complex arrays : " << (int)(((double)j / (double)w * 100) + 0.5) << " % complete ";
 		}
 	}
 	std::cout << std::endl;
@@ -325,12 +326,12 @@ Magick::Image imageFFT(Magick::Image *image) {
 	std::cout << "G: [" << minG << ", " << maxG << "]" << std::endl;
 	std::cout << "B: [" << minB << ", " << maxB << "]" << std::endl;
 
-	for (int i = 0; i < h; i++) {
-		for (int j = 0; j < w; j++) {
+	for (int j = 0; j < w; j++) {
+		for (int i = 0; i < h; i++) {
 			col = Magick::ColorRGB(
-				outR[i][j].real() / (maxR - minR) - minR,
-				outG[i][j].real() / (maxG - minG) - minG,
-				outB[i][j].real() / (maxB - minB) - minB
+				outR[j][i].real() / (maxR - minR) - minR,
+				outG[j][i].real() / (maxG - minG) - minG,
+				outB[j][i].real() / (maxB - minB) - minB
 			);
 
 			*pixels++ = col.quantumRed();
@@ -338,11 +339,11 @@ Magick::Image imageFFT(Magick::Image *image) {
 			*pixels++ = col.quantumBlue();
 		}
 
-		if (i % percent == 0) {
-			std::cout << "\rFFT translating to RGB : " << (int)(((double)i / (double)h * 100) + 0.5) << " % complete ";
+		if (j % percent == 0) {
+			std::cout << "\rFFT translating to RGB : " << (int)(((double)j / (double)w * 100) + 0.5) << " % complete ";
 		}
 
-		delete[] outR[i]; delete[] outG[i]; delete[] outB[i];
+		delete[] outR[j]; delete[] outG[j]; delete[] outB[j];
 	}
 	view.sync();
 
@@ -354,10 +355,36 @@ Magick::Image imageFFT(Magick::Image *image) {
 	return result;
 }
 
-Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool alpha_transform = true) {
-	Magick::Image fourier_img = imageFFT(image);
+// computes: 
+// 1 / (2 * Pi) \int_{0}^{2 * Pi} radonImage (p, phi) exp(- i * l * phi) dphi
+void radonImagePSlice(Magick::Image *image, int p, int l, double *red, double *green, double *blue) {
+	const int h = image->rows();
+	double phi = 0., phiMax = 2 * M_PI;
+	double dphi = phiMax / h;
+	double fourierIntegralR = 0.;
+	double fourierIntegralG = 0.;
+	double fourierIntegralB = 0.;
+	Magick::ColorRGB px, px_next;
 
-	// fourier_img.inverseFourierTransform(*image, true);
+	for (int i = 0; i < h - 1; i++) {
+		px = image->pixelColor(p, i);
+		px_next = image->pixelColor(p, i + 1);
+
+		fourierIntegralR += 0.5 * (px.red() * cos(l * phi) + px_next.red() * cos(l * (phi + dphi))) * dphi;
+		fourierIntegralG += 0.5 * (px.green() * cos(l * phi) + px_next.green() * cos(l * (phi + dphi))) * dphi;
+		fourierIntegralB += 0.5 * (px.blue() * cos(l * phi) + px_next.blue() * cos(l * (phi + dphi))) * dphi;
+
+		phi += dphi;
+	}
+
+	*red = fourierIntegralR / phiMax;
+	*green = fourierIntegralG / phiMax;
+	*blue = fourierIntegralB / phiMax;
+}
+
+Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool alpha_transform = true) {
+	// Magick::Image fourier_img = imageFFT(image);
+
 	Magick::ColorRGB px, px_next;
 
 	const int w = image->columns();
@@ -377,22 +404,42 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 
 	const int integralSize = 400;
 	int percent = (w > 100 ? (int)round((double)w / 100.) : 1);
-	int N = 5;
+	int N = 10;
+	int fpercent = ((2 * N) > 100 ? (int)round((double)(2 * N) / 100.) : 1);
+
+	double** fhatR = new double*[2 * N];
+	double** fhatG = new double*[2 * N];
+	double** fhatB = new double*[2 * N];
+
+	// fourier transform over the image space to l-space x p_space
+	for (int l = -N; l < N; l++) {
+		fhatR[N + l] = new double[w];
+		fhatG[N + l] = new double[w];
+		fhatB[N + l] = new double[w];
+		for (int k = 0; k < w; k++) {
+			radonImagePSlice(image, k, l, &fhatR[N + l][k], &fhatG[N + l][k], &fhatB[N + l][k]);
+		}
+
+		if ((l + N) % fpercent == 0) {
+			std::cout << "\rCormack Image Transform to L-space: "
+				<< (int)(((double)(l + N) / (double)(2 * N) * 100) + 0.5) << " % complete ";
+		}
+	}
+	std::cout << std::endl;
 
 	double qIntegralSumR, qIntegralSumG, qIntegralSumB;
 	double qIntegralSumR_next, qIntegralSumG_next, qIntegralSumB_next;
 	double qIntegralR_dr, qIntegralG_dr, qIntegralB_dr;
-	double fhatR, fhatG, fhatB, fhatR_next, fhatG_next, fhatB_next;
-	double integrand, integrand_next;
+	double integrand, integrand_next, integrandDen, integrandDen_next;
 	double cHarmonicSeriesSumR, cHarmonicSeriesSumG, cHarmonicSeriesSumB;
 	double seriesRconst;
 	double q, dq, theta;
 	int imgQ, imgTheta, imgQ_next, imgTheta_next;
+	int p;
 	double pMin = 0.01; double pMax = 1.;
 	double thetaMin = 0.; double thetaMax = 2 * M_PI;
-	double rMin = 0.01; double rMax = 1.;
+	double rMin = 0.001; double rMax = 1.;
 
-	double p = pMin, dp = (pMax - pMin) / integralSize;
 	double r = rMin;
 	double dr = (rMax - rMin) / integralSize;
 	double dTheta = (thetaMax - thetaMin) / integralSize;
@@ -415,46 +462,31 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 
 			// sum of N terms of circular harmonic decomposition of the Radon image
 			cHarmonicSeriesSumR = 0.; cHarmonicSeriesSumG = 0.; cHarmonicSeriesSumB = 0.;
-			for (int l = 0; l < N; l++) {
+			for (int l = -N; l < N; l++) {
 				// first integral for r
 				qIntegralSumR = 0.; qIntegralSumG = 0.; qIntegralSumB = 0.;
-				qIntegralSumR_next = 0.; qIntegralSumG_next = 0.; qIntegralSumB_next = 0.;
 
-				q = qMin;
-				for (int k = 0; k < integralSize; k++) {
+				for (int k = 0; k < w - 1; k++) {
 					// \hat{F}_l (q) = \hat{f}_l(q^(1 / alpha))
-					imgQ = XtoPixelX(w, pow(q, 1 / sigma));
-					imgQ_next = XtoPixelX(w, pow(q + dq, 1 / sigma));
-
-					if (!isInsideImage(imgQ, imgTheta, h, w) || !isInsideImage(imgQ_next, imgTheta, h, w)) {
-						// std::cout << "\r (" << imgQ << ", " << imgTheta << ") or (" << imgQ_next << ", " << imgTheta << ") is outside image!";
-						continue;
-					} else {
-						// std::cout << "\r (" << imgQ << ", " << imgTheta << ") or (" << imgQ_next << ", " << imgTheta << ") are inside";
-					}
-
-					px = fourier_img.pixelColor(imgQ, imgTheta);
-					px_next = fourier_img.pixelColor(imgQ_next, imgTheta);
-
-					fhatR = px.red();
-					fhatG = px.green();
-					fhatB = px.blue();
-
-					fhatR_next = px_next.red();
-					fhatG_next = px_next.green();
-					fhatB_next = px_next.blue();
+					q = (qMax - qMin) * k / w - qMin;
 
 					integrand = cosh(l / sigma * acosh(q / pow(r, sigma)));
-					integrand /= q * sqrt((q / pow(r, sigma)) * (q / pow(r, sigma)) - 1);
-
 					integrand_next = cosh(l / sigma * acosh((q + dq) / pow(r, sigma)));
-					integrand_next /= (q + dq)  * sqrt(((q + dq) / pow(r, sigma)) * ((q + dq) / pow(r, sigma)) - 1);
 
-					qIntegralSumR += 0.5 * (integrand * fhatR + integrand_next * fhatR_next) * dq;
-					qIntegralSumG += 0.5 * (integrand * fhatG + integrand_next * fhatG_next) * dq;
-					qIntegralSumB += 0.5 * (integrand * fhatB + integrand_next * fhatB_next) * dq;
+					integrandDen = q * sqrt((q / pow(r, sigma)) * (q / pow(r, sigma)) - 1);
+					integrandDen_next = (q + dq)  * sqrt(((q + dq) / pow(r, sigma)) * ((q + dq) / pow(r, sigma)) - 1);
 
-					q += dq;
+					if (fabs(integrandDen) < DBL_MIN || fabs(integrandDen_next) < DBL_MIN ||
+						isnan(integrand) || isnan(integrand_next) || isnan(integrandDen) || isnan(integrandDen_next)) {
+						continue;
+					}
+
+					integrand /= integrandDen;
+					integrand_next /= integrandDen_next;
+
+					qIntegralSumR += 0.5 * (integrand * fhatR[N + l][k] + integrand_next * fhatR[N + l][k + 1]) * dq;
+					qIntegralSumG += 0.5 * (integrand * fhatG[N + l][k] + integrand_next * fhatG[N + l][k + 1]) * dq;
+					qIntegralSumB += 0.5 * (integrand * fhatB[N + l][k] + integrand_next * fhatB[N + l][k + 1]) * dq;
 				}
 
 				qIntegralR_dr = qIntegralSumR;
@@ -463,46 +495,28 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 
 				// second integral for r + dr
 				qIntegralSumR = 0.; qIntegralSumG = 0.; qIntegralSumB = 0.;
-				qIntegralSumR_next = 0.; qIntegralSumG_next = 0.; qIntegralSumB_next = 0.;
 
-				q = qMin;
-				for (int k = 0; k < integralSize; k++) {
+				for (int k = 0; k < w - 1; k++) {
 					// \hat{F}_l (q) = \hat{f}_l(q^(1 / alpha))
-					imgQ = XtoPixelX(w, pow(q, 1 / sigma));
-					imgQ_next = XtoPixelX(w, pow(q + dq, 1 / sigma));
-
-					if (!isInsideImage(imgQ, imgTheta, h, w) || !isInsideImage(imgQ_next, imgTheta, h, w)) {
-						// std::cout << "\r (" << imgQ << ", " << imgTheta << ") or (" << imgQ_next << ", " << imgTheta << ") is outside image!";
-						continue;
-					}
-					else {
-						// std::cout << "\r (" << imgQ << ", " << imgTheta << ") or (" << imgQ_next << ", " << imgTheta << ") are inside";
-					}
-
-					// std::cout << "integral is being evaluated" << std::endl;
-
-					px = fourier_img.pixelColor(imgQ, imgTheta);
-					px_next = fourier_img.pixelColor(imgQ_next, imgTheta);
-
-					fhatR = px.red();
-					fhatG = px.green();
-					fhatB = px.blue();
-
-					fhatR_next = px_next.red();
-					fhatG_next = px_next.green();
-					fhatB_next = px_next.blue();
+					q = (qMax - qMin) * k / w - qMin;
 
 					integrand = cosh(l / sigma * acosh(q / pow(r + dr, sigma)));
-					integrand /= q * sqrt((q / pow(r + dr, sigma)) * (q / pow(r + dr, sigma)) - 1);
-
 					integrand_next = cosh(l / sigma * acosh((q + dq) / pow(r + dr, sigma)));
-					integrand_next /= (q + dq)  * sqrt(((q + dq) / pow(r + dr, sigma)) * ((q + dq) / pow(r + dr, sigma)) - 1);
 
-					qIntegralSumR += 0.5 * (integrand * fhatR + integrand_next * fhatR_next) * dq;
-					qIntegralSumG += 0.5 * (integrand * fhatG + integrand_next * fhatG_next) * dq;
-					qIntegralSumB += 0.5 * (integrand * fhatB + integrand_next * fhatB_next) * dq;
+					integrandDen = q * sqrt((q / pow(r + dr, sigma)) * (q / pow(r + dr, sigma)) - 1);					
+					integrandDen_next = (q + dq)  * sqrt(((q + dq) / pow(r + dr, sigma)) * ((q + dq) / pow(r + dr, sigma)) - 1);
 
-					q += dq;
+					if (fabs(integrandDen) < DBL_MIN || fabs(integrandDen_next) < DBL_MIN ||
+						isnan(integrand) || isnan(integrand_next) || isnan(integrandDen) || isnan(integrandDen_next)) {
+						continue;
+					}
+
+					integrand /= integrandDen;
+					integrand_next /= integrandDen_next;
+
+					qIntegralSumR += 0.5 * (integrand * fhatR[N + l][k] + integrand_next * fhatR[N + l][k + 1]) * dq;
+					qIntegralSumG += 0.5 * (integrand * fhatG[N + l][k] + integrand_next * fhatG[N + l][k + 1]) * dq;
+					qIntegralSumB += 0.5 * (integrand * fhatB[N + l][k] + integrand_next * fhatB[N + l][k + 1]) * dq;
 				}
 
 				// approx. derivative of the q-integral \w respect to r
@@ -545,12 +559,9 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 			resValuesG[i * h + j] = cHarmonicSeriesSumG;
 			resValuesB[i * h + j] = cHarmonicSeriesSumB;
 
-			// std::cout << "(" << r << ", " << theta << ") --> " << cHarmonicSeriesSumR << std::endl;
-
 			theta += dTheta;
 			// end theta cycle
 		}
-		p += dp;
 		r += dr;
 		// end r cycle
 
@@ -572,7 +583,7 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 	result.modifyImage();
 
 	Magick::Pixels view(result);
-	Magick::Quantum *pixels = view.get(0, 0, w, h);
+	Magick::Quantum *pixels = view.get(0, 0, h, w);
 	Magick::ColorRGB col;
 
 	for (int i = 0; i < h; i++) {
@@ -597,6 +608,15 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 
 	view.sync();
 
+	for (int i = 0; i < 2 * N; i++) {
+		delete[] fhatR[i];
+		delete[] fhatG[i];
+		delete[] fhatB[i];
+	}
+	delete[] fhatR;
+	delete[] fhatG;
+	delete[] fhatB;
+
 	delete[] resValuesR;
 	delete[] resValuesG;
 	delete[] resValuesB;
@@ -614,8 +634,8 @@ int main(int /*argc*/, char **argv)
 	try {
 		orig_image.read("Shepp-Logan-phantom.pgm");
 
-		double s = 0.3;
-		orig_image.resize(Magick::Geometry(s * orig_image.columns(), s * orig_image.rows()));
+		double s = 0.2;
+		orig_image.resize(Magick::Geometry((size_t) round(s * orig_image.columns()), (size_t) round(s * orig_image.rows())));
 
 		// alpha transforms
 		Magick::Image result_1 = CormackTransform(&orig_image, 1.);
@@ -631,6 +651,7 @@ int main(int /*argc*/, char **argv)
 		//result_4.write("Sinogram4.jpg");
 
 		Magick::Image result_5 = InverseCormackTransform(&result_1, 1.);
+		//Magick::Image result_5 = InverseCormackTransform(&orig_image, 1.);
 
 		result_5.write("FFT_Sinogram1.jpg");
 	}
