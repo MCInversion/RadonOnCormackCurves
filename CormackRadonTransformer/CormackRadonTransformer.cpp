@@ -131,7 +131,6 @@ Magick::Image CormackTransform(Magick::Image *image, double sigma, bool alpha_tr
 			for (int k = 0; k < integralSize; k++) {
 				psi += dPsi;
 
-
 				r = (alpha_transform ? p / pow(cos(sigma * psi), 1. / sigma) : p * pow(cos(sigma * psi), 1. / sigma));
 				r_next = (alpha_transform ? p / pow(cos(sigma * (psi + dPsi)), 1. / sigma) : p * pow(cos(sigma * (psi + dPsi)), 1. / sigma));
 				theta = phi + psi;
@@ -377,47 +376,187 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 	double maxB = maxR;
 
 	const int integralSize = 400;
-	int percent = (h > 100 ? (int)round((double)h / 100.) : 1);
+	int percent = (w > 100 ? (int)round((double)w / 100.) : 1);
 	int N = 5;
 
 	double qIntegralSumR, qIntegralSumG, qIntegralSumB;
+	double qIntegralSumR_next, qIntegralSumG_next, qIntegralSumB_next;
+	double qIntegralR_dr, qIntegralG_dr, qIntegralB_dr;
 	double fhatR, fhatG, fhatB, fhatR_next, fhatG_next, fhatB_next;
-	double qMin, qMax = 2. * std::max(h, w);
+	double integrand, integrand_next;
+	double cHarmonicSeriesSumR, cHarmonicSeriesSumG, cHarmonicSeriesSumB;
+	double seriesRconst;
+	double q, dq, theta;
+	int imgQ, imgTheta, imgQ_next, imgTheta_next;
+	double pMin = 0.01; double pMax = 1.;
+	double thetaMin = 0.; double thetaMax = 2 * M_PI;
+	double rMin = 0.01; double rMax = 1.;
+
+	double p = pMin, dp = (pMax - pMin) / integralSize;
+	double r = rMin;
+	double dr = (rMax - rMin) / integralSize;
+	double dTheta = (thetaMax - thetaMin) / integralSize;
+	double qMin, qMax = 2.;
 
 	std::string paramString = alpha_transform ? "alpha" : "beta";
 	std::cout << "initializing Inverse Cormack " << paramString << "-transform \\w " << paramString << " = " << sigma << ", Fourier order: " << N << std::endl;
 	std::cout << "image : " << h << "x" << w << std::endl;
 
+	// for each (r, theta) we compute a circular harmonic sum of the q-integrals of Fourier image terms \hat{F}_l (q)
 	for (int j = 0; j < w; j++) {
+		qMin = pow(r, sigma);
+		dq = (qMax - qMin) / integralSize;
+		seriesRconst = -sigma * pow(r, sigma - 1) / M_PI;
 
+		// angle cycle [0, 2 * Pi]
+		theta = thetaMin;
 		for (int i = 0; i < h; i++) {
+			imgTheta = YtoPixelY(h, theta);
 
-			qIntegralSumR = 0.; qIntegralSumG = 0.; qIntegralSumB = 0.;
-			for (int q = 0; q < integralSize; q++) {
+			// sum of N terms of circular harmonic decomposition of the Radon image
+			cHarmonicSeriesSumR = 0.; cHarmonicSeriesSumG = 0.; cHarmonicSeriesSumB = 0.;
+			for (int l = 0; l < N; l++) {
+				// first integral for r
+				qIntegralSumR = 0.; qIntegralSumG = 0.; qIntegralSumB = 0.;
+				qIntegralSumR_next = 0.; qIntegralSumG_next = 0.; qIntegralSumB_next = 0.;
 
+				q = qMin;
+				for (int k = 0; k < integralSize; k++) {
+					// \hat{F}_l (q) = \hat{f}_l(q^(1 / alpha))
+					imgQ = XtoPixelX(w, pow(q, 1 / sigma));
+					imgQ_next = XtoPixelX(w, pow(q + dq, 1 / sigma));
 
+					if (!isInsideImage(imgQ, imgTheta, h, w) || !isInsideImage(imgQ_next, imgTheta, h, w)) {
+						// std::cout << "\r (" << imgQ << ", " << imgTheta << ") or (" << imgQ_next << ", " << imgTheta << ") is outside image!";
+						continue;
+					} else {
+						// std::cout << "\r (" << imgQ << ", " << imgTheta << ") or (" << imgQ_next << ", " << imgTheta << ") are inside";
+					}
+
+					px = fourier_img.pixelColor(imgQ, imgTheta);
+					px_next = fourier_img.pixelColor(imgQ_next, imgTheta);
+
+					fhatR = px.red();
+					fhatG = px.green();
+					fhatB = px.blue();
+
+					fhatR_next = px_next.red();
+					fhatG_next = px_next.green();
+					fhatB_next = px_next.blue();
+
+					integrand = cosh(l / sigma * acosh(q / pow(r, sigma)));
+					integrand /= q * sqrt((q / pow(r, sigma)) * (q / pow(r, sigma)) - 1);
+
+					integrand_next = cosh(l / sigma * acosh((q + dq) / pow(r, sigma)));
+					integrand_next /= (q + dq)  * sqrt(((q + dq) / pow(r, sigma)) * ((q + dq) / pow(r, sigma)) - 1);
+
+					qIntegralSumR += 0.5 * (integrand * fhatR + integrand_next * fhatR_next) * dq;
+					qIntegralSumG += 0.5 * (integrand * fhatG + integrand_next * fhatG_next) * dq;
+					qIntegralSumB += 0.5 * (integrand * fhatB + integrand_next * fhatB_next) * dq;
+
+					q += dq;
+				}
+
+				qIntegralR_dr = qIntegralSumR;
+				qIntegralG_dr = qIntegralSumG;
+				qIntegralB_dr = qIntegralSumB;
+
+				// second integral for r + dr
+				qIntegralSumR = 0.; qIntegralSumG = 0.; qIntegralSumB = 0.;
+				qIntegralSumR_next = 0.; qIntegralSumG_next = 0.; qIntegralSumB_next = 0.;
+
+				q = qMin;
+				for (int k = 0; k < integralSize; k++) {
+					// \hat{F}_l (q) = \hat{f}_l(q^(1 / alpha))
+					imgQ = XtoPixelX(w, pow(q, 1 / sigma));
+					imgQ_next = XtoPixelX(w, pow(q + dq, 1 / sigma));
+
+					if (!isInsideImage(imgQ, imgTheta, h, w) || !isInsideImage(imgQ_next, imgTheta, h, w)) {
+						// std::cout << "\r (" << imgQ << ", " << imgTheta << ") or (" << imgQ_next << ", " << imgTheta << ") is outside image!";
+						continue;
+					}
+					else {
+						// std::cout << "\r (" << imgQ << ", " << imgTheta << ") or (" << imgQ_next << ", " << imgTheta << ") are inside";
+					}
+
+					// std::cout << "integral is being evaluated" << std::endl;
+
+					px = fourier_img.pixelColor(imgQ, imgTheta);
+					px_next = fourier_img.pixelColor(imgQ_next, imgTheta);
+
+					fhatR = px.red();
+					fhatG = px.green();
+					fhatB = px.blue();
+
+					fhatR_next = px_next.red();
+					fhatG_next = px_next.green();
+					fhatB_next = px_next.blue();
+
+					integrand = cosh(l / sigma * acosh(q / pow(r + dr, sigma)));
+					integrand /= q * sqrt((q / pow(r + dr, sigma)) * (q / pow(r + dr, sigma)) - 1);
+
+					integrand_next = cosh(l / sigma * acosh((q + dq) / pow(r + dr, sigma)));
+					integrand_next /= (q + dq)  * sqrt(((q + dq) / pow(r + dr, sigma)) * ((q + dq) / pow(r + dr, sigma)) - 1);
+
+					qIntegralSumR += 0.5 * (integrand * fhatR + integrand_next * fhatR_next) * dq;
+					qIntegralSumG += 0.5 * (integrand * fhatG + integrand_next * fhatG_next) * dq;
+					qIntegralSumB += 0.5 * (integrand * fhatB + integrand_next * fhatB_next) * dq;
+
+					q += dq;
+				}
+
+				// approx. derivative of the q-integral \w respect to r
+				qIntegralR_dr = (qIntegralSumR - qIntegralR_dr) / dr;
+				qIntegralG_dr = (qIntegralSumG - qIntegralG_dr) / dr;
+				qIntegralB_dr = (qIntegralSumB - qIntegralB_dr) / dr;
+
+				// add circular fourier l-term
+				cHarmonicSeriesSumR += cos(l * theta) * qIntegralR_dr;
+				cHarmonicSeriesSumG += cos(l * theta) * qIntegralG_dr;
+				cHarmonicSeriesSumB += cos(l * theta) * qIntegralB_dr;
 			}
 
-			if (qIntegralSumR < minR) {
-				minR = qIntegralSumR;
+			cHarmonicSeriesSumR *= seriesRconst;
+			cHarmonicSeriesSumG *= seriesRconst;
+			cHarmonicSeriesSumB *= seriesRconst;
+
+			if (cHarmonicSeriesSumR < minR) {
+				minR = cHarmonicSeriesSumR;
 			}
-			if (qIntegralSumR > maxR) {
-				maxR = qIntegralSumR;
+			if (cHarmonicSeriesSumR > maxR) {
+				maxR = cHarmonicSeriesSumR;
 			}
 
-			if (qIntegralSumG < minG) {
-				minG = qIntegralSumG;
+			if (cHarmonicSeriesSumG < minG) {
+				minG = cHarmonicSeriesSumG;
 			}
-			if (qIntegralSumG > maxG) {
-				maxG = qIntegralSumG;
+			if (cHarmonicSeriesSumG > maxG) {
+				maxG = cHarmonicSeriesSumG;
 			}
 
-			if (qIntegralSumB < minB) {
-				minB = qIntegralSumB;
+			if (cHarmonicSeriesSumB < minB) {
+				minB = cHarmonicSeriesSumB;
 			}
-			if (qIntegralSumB > maxB) {
-				maxB = qIntegralSumB;
+			if (cHarmonicSeriesSumB > maxB) {
+				maxB = cHarmonicSeriesSumB;
 			}
+
+			resValuesR[i * h + j] = cHarmonicSeriesSumR;
+			resValuesG[i * h + j] = cHarmonicSeriesSumG;
+			resValuesB[i * h + j] = cHarmonicSeriesSumB;
+
+			// std::cout << "(" << r << ", " << theta << ") --> " << cHarmonicSeriesSumR << std::endl;
+
+			theta += dTheta;
+			// end theta cycle
+		}
+		p += dp;
+		r += dr;
+		// end r cycle
+
+		if (j % percent == 0) {
+			std::cout << "\rInverse Cormack Transform: "
+				<< (int)(((double)j / (double)w * 100) + 0.5) << " % complete ";
 		}
 	}
 
@@ -462,7 +601,7 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 	delete[] resValuesG;
 	delete[] resValuesB;
 
-	return fourier_img;
+	return result;
 }
 
 int main(int /*argc*/, char **argv)
@@ -475,7 +614,7 @@ int main(int /*argc*/, char **argv)
 	try {
 		orig_image.read("Shepp-Logan-phantom.pgm");
 
-		double s = 0.5;
+		double s = 0.3;
 		orig_image.resize(Magick::Geometry(s * orig_image.columns(), s * orig_image.rows()));
 
 		// alpha transforms
