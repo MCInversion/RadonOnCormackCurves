@@ -265,9 +265,9 @@ Magick::Image imageFFT(Magick::Image *image) {
 	double *rowG = new double[w];
 	double *rowB = new double[w];
 
-	std::complex<double> *outR = new std::complex<double>[w];
-	std::complex<double> *outG = new std::complex<double>[w];
-	std::complex<double> *outB = new std::complex<double>[w];
+	std::complex<double> **outR = new std::complex<double>*[h];
+	std::complex<double> **outG = new std::complex<double>*[h];
+	std::complex<double> **outB = new std::complex<double>*[h];
 
 	double minR = DBL_MAX;
 	double maxR = -DBL_MAX;
@@ -278,6 +278,10 @@ Magick::Image imageFFT(Magick::Image *image) {
 
 	for (int i = 0; i < h; i++) {
 		// fill 3 1D vectors
+		outR[i] = new std::complex<double>[w];
+		outG[i] = new std::complex<double>[w];
+		outB[i] = new std::complex<double>[w];
+
 		for (int j = 0; j < w; j++) {
 			px = image->pixelColor(i, j);
 
@@ -285,38 +289,49 @@ Magick::Image imageFFT(Magick::Image *image) {
 			rowG[j] = px.green();
 			rowB[j] = px.blue();
 		}
-		fft(rowR, outR, w);
-		fft(rowG, outG, w);
-		fft(rowB, outB, w);
+		fft(rowR, outR[i], w);
+		fft(rowG, outG[i], w);
+		fft(rowB, outB[i], w);
 
 		for (int j = 0; j < w; j++) {
-			if (outR[j].real() < minR) {
-				minR = outR[j].real();
+			if (outR[i][j].real() < minR) {
+				minR = outR[i][j].real();
 			}
-			if (outR[j].real() > maxR) {
-				maxR = outR[j].real();
-			}
-
-			if (outG[j].real() < minG) {
-				minG = outG[j].real();
-			}
-			if (outG[j].real() > maxG) {
-				maxG = outG[j].real();
+			if (outR[i][j].real() > maxR) {
+				maxR = outR[i][j].real();
 			}
 
-			if (outB[j].real() < minB) {
-				minB = outB[j].real();
+			if (outG[i][j].real() < minG) {
+				minG = outG[i][j].real();
 			}
-			if (outB[j].real() > maxB) {
-				maxB = outB[j].real();
+			if (outG[i][j].real() > maxG) {
+				maxG = outG[i][j].real();
+			}
+
+			if (outB[i][j].real() < minB) {
+				minB = outB[i][j].real();
+			}
+			if (outB[i][j].real() > maxB) {
+				maxB = outB[i][j].real();
 			}
 		}
 
+		if (i % percent == 0) {
+			std::cout << "\rFFT filling complex arrays : " << (int)(((double)i / (double)h * 100) + 0.5) << " % complete ";
+		}
+	}
+	std::cout << std::endl;
+	std::cout << "RGB limits:" << std::endl;
+	std::cout << "R: [" << minR << ", " << maxR << "]" << std::endl;
+	std::cout << "G: [" << minG << ", " << maxG << "]" << std::endl;
+	std::cout << "B: [" << minB << ", " << maxB << "]" << std::endl;
+
+	for (int i = 0; i < h; i++) {
 		for (int j = 0; j < w; j++) {
 			col = Magick::ColorRGB(
-				outR[j].real() / (maxR - minR) - minR,
-				outG[j].real() / (maxG - minG) - minG,
-				outB[j].real() / (maxB - minB) - minB
+				outR[i][j].real() / (maxR - minR) - minR,
+				outG[i][j].real() / (maxG - minG) - minG,
+				outB[i][j].real() / (maxB - minB) - minB
 			);
 
 			*pixels++ = col.quantumRed();
@@ -325,11 +340,12 @@ Magick::Image imageFFT(Magick::Image *image) {
 		}
 
 		if (i % percent == 0) {
-			std::cout << "\rFFT : " << (int)(((double)i / (double)h * 100) + 0.5) << " % complete ";
+			std::cout << "\rFFT translating to RGB : " << (int)(((double)i / (double)h * 100) + 0.5) << " % complete ";
 		}
+
+		delete[] outR[i]; delete[] outG[i]; delete[] outB[i];
 	}
 	view.sync();
-	std::cout << std::endl;
 
 	delete[] outR; delete[] outG; delete[] outB;
 	delete[] rowR; delete[] rowG; delete[] rowB;
@@ -361,7 +377,6 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 	double maxB = maxR;
 
 	const int integralSize = 400;
-	double dTheta = 2 * M_PI / integralSize;
 	int percent = (h > 100 ? (int)round((double)h / 100.) : 1);
 	int N = 5;
 
@@ -478,7 +493,7 @@ int main(int /*argc*/, char **argv)
 
 		Magick::Image result_5 = InverseCormackTransform(&result_1, 1.);
 
-		result_5.write("IFFT_Sinogram1.jpg");
+		result_5.write("FFT_Sinogram1.jpg");
 	}
 	catch (Magick::Exception &error_)
 	{
