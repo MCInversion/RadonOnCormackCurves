@@ -188,9 +188,9 @@ Magick::Image CormackTransform(Magick::Image *image, double sigma, bool alpha_tr
 				maxB = psiIntegSumB;
 			}
 
-			resValuesR[i * h + j] = psiIntegSumR;
-			resValuesG[i * h + j] = psiIntegSumG;
-			resValuesB[i * h + j] = psiIntegSumB;
+			resValuesR[i * w + j] = psiIntegSumR;
+			resValuesG[i * w + j] = psiIntegSumG;
+			resValuesB[i * w + j] = psiIntegSumB;
 		}
 
 		if (i % percent == 0) {
@@ -217,9 +217,9 @@ Magick::Image CormackTransform(Magick::Image *image, double sigma, bool alpha_tr
 	for (int i = 0; i < h; i++) {
 		for (int j = 0; j < w; j++) {
 			col = Magick::ColorRGB(
-				resValuesR[i * h + j] / (maxR - minR) - minR,
-				resValuesG[i * h + j] / (maxG - minG) - minG,
-				resValuesB[i * h + j] / (maxB - minB) - minB
+				resValuesR[i * w + j] / (maxR - minR) - minR,
+				resValuesG[i * w + j] / (maxG - minG) - minG,
+				resValuesB[i * w + j] / (maxB - minB) - minB
 			);
 
 			*pixels++ = col.quantumRed();
@@ -404,7 +404,7 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 
 	const int integralSize = 400;
 	int percent = (w > 100 ? (int)round((double)w / 100.) : 1);
-	int N = 10;
+	int N = 15;
 	int fpercent = ((2 * N) > 100 ? (int)round((double)(2 * N) / 100.) : 1);
 
 	double** fhatR = new double*[2 * N];
@@ -443,7 +443,7 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 	double r = rMin;
 	double dr = (rMax - rMin) / integralSize;
 	double dTheta = (thetaMax - thetaMin) / integralSize;
-	double qMin, qMax = 2.;
+	double qMin, qMax = 1.;
 
 	std::string paramString = alpha_transform ? "alpha" : "beta";
 	std::cout << "initializing Inverse Cormack " << paramString << "-transform \\w " << paramString << " = " << sigma << ", Fourier order: " << N << std::endl;
@@ -466,15 +466,15 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 				// first integral for r
 				qIntegralSumR = 0.; qIntegralSumG = 0.; qIntegralSumB = 0.;
 
-				for (int k = 0; k < w - 1; k++) {
+				for (int k = 1; k < w - 1; k++) {
 					// \hat{F}_l (q) = \hat{f}_l(q^(1 / alpha))
 					q = (qMax - qMin) * k / w - qMin;
 
-					integrand = cosh(l / sigma * acosh(q / pow(r, sigma)));
-					integrand_next = cosh(l / sigma * acosh((q + dq) / pow(r, sigma)));
+					integrand = cosh(l / (N * sigma) * acosh(q / pow(r, sigma)));
+					integrand_next = cosh(l / (N * sigma) * acosh((q + dq) / pow(r, sigma)));
 
-					integrandDen = q * sqrt((q / pow(r, sigma)) * (q / pow(r, sigma)) - 1);
-					integrandDen_next = (q + dq)  * sqrt(((q + dq) / pow(r, sigma)) * ((q + dq) / pow(r, sigma)) - 1);
+					integrandDen = q * sqrt(pow((q / pow(r, sigma)), 2) - 1);
+					integrandDen_next = (q + dq)  * sqrt(pow((q + dq) / pow(r, sigma), 2) - 1);
 
 					if (fabs(integrandDen) < DBL_MIN || fabs(integrandDen_next) < DBL_MIN ||
 						isnan(integrand) || isnan(integrand_next) || isnan(integrandDen) || isnan(integrandDen_next)) {
@@ -496,15 +496,15 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 				// second integral for r + dr
 				qIntegralSumR = 0.; qIntegralSumG = 0.; qIntegralSumB = 0.;
 
-				for (int k = 0; k < w - 1; k++) {
+				for (int k = 1; k < w - 1; k++) {
 					// \hat{F}_l (q) = \hat{f}_l(q^(1 / alpha))
 					q = (qMax - qMin) * k / w - qMin;
 
-					integrand = cosh(l / sigma * acosh(q / pow(r + dr, sigma)));
-					integrand_next = cosh(l / sigma * acosh((q + dq) / pow(r + dr, sigma)));
+					integrand = cosh(l / (N * sigma) * acosh(q / pow(r + dr, sigma)));
+					integrand_next = cosh(l / (N * sigma) * acosh((q + dq) / pow(r + dr, sigma)));
 
-					integrandDen = q * sqrt((q / pow(r + dr, sigma)) * (q / pow(r + dr, sigma)) - 1);					
-					integrandDen_next = (q + dq)  * sqrt(((q + dq) / pow(r + dr, sigma)) * ((q + dq) / pow(r + dr, sigma)) - 1);
+					integrandDen = q * sqrt(pow((q / pow(r + dr, sigma)), 2) - 1);
+					integrandDen_next = (q + dq)  * sqrt(pow((q + dq) / pow(r + dr, sigma), 2) - 1);
 
 					if (fabs(integrandDen) < DBL_MIN || fabs(integrandDen_next) < DBL_MIN ||
 						isnan(integrand) || isnan(integrand_next) || isnan(integrandDen) || isnan(integrandDen_next)) {
@@ -555,9 +555,9 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 				maxB = cHarmonicSeriesSumB;
 			}
 
-			resValuesR[i * h + j] = cHarmonicSeriesSumR;
-			resValuesG[i * h + j] = cHarmonicSeriesSumG;
-			resValuesB[i * h + j] = cHarmonicSeriesSumB;
+			resValuesR[i * w + j] = cHarmonicSeriesSumR;
+			resValuesG[i * w + j] = cHarmonicSeriesSumG;
+			resValuesB[i * w + j] = cHarmonicSeriesSumB;
 
 			theta += dTheta;
 			// end theta cycle
@@ -589,9 +589,9 @@ Magick::Image InverseCormackTransform(Magick::Image *image, double sigma, bool a
 	for (int i = 0; i < h; i++) {
 		for (int j = 0; j < w; j++) {
 			col = Magick::ColorRGB(
-				resValuesR[i * h + j] / (maxR - minR) - minR,
-				resValuesG[i * h + j] / (maxG - minG) - minG,
-				resValuesB[i * h + j] / (maxB - minB) - minB
+				resValuesR[i * w + j] / (maxR - minR) - minR,
+				resValuesG[i * w + j] / (maxG - minG) - minG,
+				resValuesB[i * w + j] / (maxB - minB) - minB
 			);
 
 			*pixels++ = col.quantumRed();
@@ -632,28 +632,37 @@ int main(int /*argc*/, char **argv)
 	Magick::Image orig_image;
 
 	try {
-		orig_image.read("Shepp-Logan-phantom.pgm");
+		orig_image.read("MRI_brain.jpg");
 
-		double s = 0.2;
+		double s = 1.;
 		orig_image.resize(Magick::Geometry((size_t) round(s * orig_image.columns()), (size_t) round(s * orig_image.rows())));
 
 		// alpha transforms
 		Magick::Image result_1 = CormackTransform(&orig_image, 1.);
-		//Magick::Image result_2 = CormackTransform(&orig_image, 0.5);
+		Magick::Image result_2 = CormackTransform(&orig_image, 0.5);
+		Magick::Image result_3 = CormackTransform(&orig_image, 0.25);
+		Magick::Image result_4 = CormackTransform(&orig_image, 2.);
 
 		// beta transforms
-		//Magick::Image result_3 = CormackTransform(&orig_image, 1., false);
-		//Magick::Image result_4 = CormackTransform(&orig_image, 0.5, false);
+		Magick::Image result_5 = CormackTransform(&orig_image, 1., false);
+		Magick::Image result_6 = CormackTransform(&orig_image, 0.5, false);
+		Magick::Image result_7 = CormackTransform(&orig_image, 0.25, false);
+		Magick::Image result_8 = CormackTransform(&orig_image, 2., false);
 
-		result_1.write("Sinogram1.jpg");
-		//result_2.write("Sinogram2.jpg");
-		//result_3.write("Sinogram3.jpg");
-		//result_4.write("Sinogram4.jpg");
+		//result_1.write("Sinogram1.jpg");
+		result_1.write("brain_ct_lines.jpg");
+		result_2.write("brain_ct_parabolas.jpg");
+		result_3.write("brain_ct_alpha025.jpg");
+		result_4.write("brain_ct_hyperbolas.jpg");
+		result_5.write("brain_ct_circles.jpg");
+		result_6.write("brain_ct_cardioids.jpg");
+		result_7.write("brain_ct_beta025.jpg");
+		result_8.write("brain_ct_lemniscates.jpg");
 
-		Magick::Image result_5 = InverseCormackTransform(&result_1, 1.);
+		//Magick::Image result_5 = InverseCormackTransform(&result_1, 1.);
 		//Magick::Image result_5 = InverseCormackTransform(&orig_image, 1.);
 
-		result_5.write("FFT_Sinogram1.jpg");
+		//result_5.write("FFT_Sinogram1.jpg");
 	}
 	catch (Magick::Exception &error_)
 	{
